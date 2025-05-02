@@ -2,8 +2,8 @@ import json
 import requests
 import time
 import os
-import uuid
 import logging
+from datetime import datetime
 
 COMFY_API_URL = "http://127.0.0.1:8188/prompt"
 DEFAULT_WORKFLOW_PATH = "workflow_base.json"
@@ -42,7 +42,7 @@ This file defines the ComfyUI workflow to use when generating images.
 def inject_prompt(workflow, prompt):
     found = False
     logging.info(f"Injecting prompt: '{prompt}'")
-    for node_id, node in workflow["nodes"].items():
+    for node_id, node in workflow.items():
         if node["class_type"] == "CLIPTextEncode":
             logging.info(f"Found CLIPTextEncode node (id: {node_id})")
             node["inputs"]["text"] = prompt
@@ -52,7 +52,6 @@ def inject_prompt(workflow, prompt):
         raise ValueError("No CLIPTextEncode node found in workflow.")
     return workflow
 
-import pprint
 
 def run_prompt(prompt, workflow_path=DEFAULT_WORKFLOW_PATH):
     logging.info(f"Starting generation for: '{prompt}'")
@@ -63,10 +62,15 @@ def run_prompt(prompt, workflow_path=DEFAULT_WORKFLOW_PATH):
     print("\n[📄] Workflow to be submitted:")
     print("=" * 60)
     print(json.dumps(workflow, indent=2))
+    timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+    filename = f"workflow_{timestamp}.json"
+    # Save it
+    with open(filename, "w") as f:
+        json.dump(workflow, f, indent=2)
     print("=" * 60 + "\n")
 
     try:
-        response = requests.post(COMFY_API_URL, json=workflow)
+        response = requests.post(COMFY_API_URL, data=workflow)
     except Exception as e:
         logging.error(f"Connection error: {e}")
         return
