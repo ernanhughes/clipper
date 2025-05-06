@@ -1,31 +1,26 @@
 # cli.py
 
-import sys, os
-from clipper.core import run_prompt, run_batch
+import argparse
+import os
+from clipper import Clipper, ClipperConfig
 
 def main():
-    if len(sys.argv) < 2:
-        print("""
-[✱] Usage: clipper <prompt or file path>
+    parser = argparse.ArgumentParser(
+        description="🧠 Clipper: Generate AI images from prompts (text or file)"
+    )
+    parser.add_argument("input", help="Prompt string or file path")
+    parser.add_argument("--config", default="clipper_config.json", help="Path to config JSON")
 
-You can pass either:
-  📄 A file path — containing one prompt per line (e.g., prompts.txt)
-  📝 A single prompt — like "flat icon of a rocket in outline style"
+    args = parser.parse_args()
+    config = ClipperConfig(args.config)
+    clipper = Clipper(config)
 
-Examples:
-  clipper prompts.txt
-  clipper "an icon of a calendar with checkmarks"
-
-""")
-        return
-
-    arg = sys.argv[1]
-    if os.path.isfile(arg):
-        with open(arg, "r") as f:
+    if os.path.isfile(args.input):
+        with open(args.input, "r", encoding="utf-8") as f:
             prompts = [line.strip() for line in f if line.strip()]
-        run_batch(prompts)
+        clipper.run_batch(prompts)
     else:
-        run_prompt(arg)
+        clipper.run_batch([args.input])
 
 if __name__ == "__main__":
     main()

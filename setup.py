@@ -1,7 +1,7 @@
 from setuptools import setup, find_packages
 
 setup(
-    name='clipper-comfy',
+    name='clipper',
     version='0.1.0',
     description='Batch image generation for ComfyUI using prompts',
     author='Ernan Hughes',

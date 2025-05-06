@@ -3,91 +3,121 @@ import requests
 import time
 import os
 import logging
+import re
+import base64
 from datetime import datetime
+from typing import List, Optional
 
-COMFY_API_URL = "http://127.0.0.1:8188/prompt"
-DEFAULT_WORKFLOW_PATH = "workflow_base.json"
-LOG_FILE = "clipper.log"
+class ClipperConfig:
+    def __init__(self, config_file: Optional[str] = None):
+        # Default config
+        self.api_url = "http://127.0.0.1:7860/sdapi/v1/txt2img"
+        self.output_dir = "generated_images"
+        self.log_file = "clipper.log"
+        self.prompt_log = "prompt_log.jsonl"
+        self.steps = 30
+        self.width = 512
+        self.height = 512
+        self.cfg_scale = 7
+        self.delay = 1
 
-# --- Setup logging ---
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s [%(levelname)s] %(message)s",
-    handlers=[
-        logging.FileHandler(LOG_FILE),
-        logging.StreamHandler()
-    ]
-)
+        if config_file and os.path.exists(config_file):
+            self.load_from_file(config_file)
 
-def load_workflow(workflow_path=DEFAULT_WORKFLOW_PATH):
-    if not os.path.exists(workflow_path):
-        logging.error(f"Missing required file: {workflow_path}")
-        raise FileNotFoundError(
-            f"""
-[✘] Missing required file: {workflow_path}
+        os.makedirs(self.output_dir, exist_ok=True)
 
-This file defines the ComfyUI workflow to use when generating images.
-
-➡️ What to do:
-  1. Make sure 'workflow_base.json' is located in the root of your Clipper project.
-  2. It should include nodes like CLIPTextEncode, KSampler, VAEDecode, SaveImage.
-
-📁 Example location:
-  ./workflow_base.json
-""")
-    logging.info(f"Loaded workflow from: {workflow_path}")
-    with open(workflow_path, "r") as f:
-        return json.load(f)
-
-def inject_prompt(workflow, prompt):
-    found = False
-    logging.info(f"Injecting prompt: '{prompt}'")
-    for node_id, node in workflow.items():
-        if node["class_type"] == "CLIPTextEncode":
-            logging.info(f"Found CLIPTextEncode node (id: {node_id})")
-            node["inputs"]["text"] = prompt
-            found = True
-    if not found:
-        logging.error("No CLIPTextEncode node found in workflow.")
-        raise ValueError("No CLIPTextEncode node found in workflow.")
-    return workflow
+    def load_from_file(self, filepath: str):
+        with open(filepath, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        for key in data:
+            if hasattr(self, key):
+                setattr(self, key, data[key])
 
 
-def run_prompt(prompt, workflow_path=DEFAULT_WORKFLOW_PATH):
-    logging.info(f"Starting generation for: '{prompt}'")
-    workflow = load_workflow(workflow_path)
-    workflow = inject_prompt(workflow, prompt)
+class Clipper:
+    def __init__(self, config: ClipperConfig):
+        self.config = config
+        self._setup_logging()
 
-    # 👀 Print full workflow to console
-    print("\n[📄] Workflow to be submitted:")
-    print("=" * 60)
-    print(json.dumps(workflow, indent=2))
-    timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-    filename = f"workflow_{timestamp}.json"
-    # Save it
-    with open(filename, "w") as f:
-        json.dump(workflow, f, indent=2)
-    print("=" * 60 + "\n")
+    def _setup_logging(self):
+        logging.basicConfig(
+            level=logging.INFO,
+            format="%(asctime)s [%(levelname)s] %(message)s",
+            handlers=[
+                logging.FileHandler(self.config.log_file),
+                logging.StreamHandler()
+            ]
+        )
 
-    try:
-        response = requests.post(COMFY_API_URL, data=workflow)
-    except Exception as e:
-        logging.error(f"Connection error: {e}")
-        return
+    def _sanitize_filename(self, prompt: str) -> str:
+        slug = re.sub(r'[^\w\s-]', '', prompt).strip().lower()
+        return re.sub(r'[-\s]+', '-', slug)[:50]
 
-    if response.status_code == 200:
-        logging.info("Prompt submitted successfully")
-    else:
-        logging.error(f"HTTP {response.status_code}: {response.text}")
+    def _log_prompt_metadata(self, prompt: str, filename: str, timestamp: str):
+        log_entry = {
+            "prompt": prompt,
+            "filename": filename,
+            "timestamp": timestamp,
+            "width": self.config.width,
+            "height": self.config.height,
+            "cfg_scale": self.config.cfg_scale,
+            "steps": self.config.steps
+        }
+        with open(self.config.prompt_log, "a", encoding="utf-8") as f:
+            f.write(json.dumps(log_entry) + "\n")
+
+    def generate_image(self, prompt: str):
+        timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+        base_name = self._sanitize_filename(prompt)
+        filename = f"{base_name}_{timestamp}.png"
+        output_path = os.path.join(self.config.output_dir, filename)
+
+        payload = {
+            "prompt": prompt,
+            "steps": self.config.steps,
+            "width": self.config.width,
+            "height": self.config.height,
+            "cfg_scale": self.config.cfg_scale
+        }
+
         try:
-            logging.debug("Response JSON: %s", response.json())
-        except:
-            logging.debug("Raw response: %s", response.text)
+            response = requests.post(self.config.api_url, json=payload)
+            response.raise_for_status()
+            r = response.json()
 
-def run_batch(prompt_list, workflow_path=DEFAULT_WORKFLOW_PATH):
-    logging.info(f"Starting batch run ({len(prompt_list)} prompts)")
-    for i, prompt in enumerate(prompt_list):
-        logging.info(f"--- [{i+1}/{len(prompt_list)}] ---")
-        run_prompt(prompt, workflow_path)
-        time.sleep(1)
-    logging.info("Batch run completed")
+            if "images" in r:
+                image_data = r["images"][0]
+                image_bytes = base64.b64decode(image_data.split(",", 1)[-1])
+
+                with open(output_path, "wb") as f:
+                    f.write(image_bytes)
+
+                logging.info(f"✅ Saved: {filename}")
+                self._log_prompt_metadata(prompt, filename, timestamp)
+            else:
+                logging.error(f"❌ No image returned for: {prompt}")
+
+        except Exception as e:
+            logging.exception(f"❌ Error generating image for: {prompt} — {e}")
+
+    def run_batch(self, prompts: List[str]):
+        logging.info(f"📦 Starting batch: {len(prompts)} prompts")
+        for i, prompt in enumerate(prompts):
+            logging.info(f"[{i+1}/{len(prompts)}] {prompt[:60]}")
+            self.generate_image(prompt)
+            time.sleep(self.config.delay)
+        logging.info("🎉 Batch complete")
+
+
+# --- Example usage ---
+if __name__ == "__main__":
+    config = ClipperConfig("clipper_config.json")
+    clipper = Clipper(config)
+
+    prompts = [
+        "A majestic lion standing on a cliff at sunrise",
+        "Cyberpunk samurai walking through a neon-lit alley",
+        "Abstract painting of a dreamlike forest in spring"
+    ]
+
+    clipper.run_batch(prompts)
