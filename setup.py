@@ -1,7 +1,7 @@
 from setuptools import setup, find_packages
 
 setup(
-    name='clipper',
+    name='clipper-ai',
     version='0.1.0',
     description='Batch image generation for webui_forge using prompts',
     author='Ernan Hughes',

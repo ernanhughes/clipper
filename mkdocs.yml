@@ -1,0 +1,25 @@
+site_name: Clipper-AI
+site_description: CLI-based AI image generator
+site_author: Ernan Hughes
+repo_url: https://github.com/ernanhughes/clipper-ai
+
+theme:
+  name: material
+  features:
+    - navigation.tabs
+    - navigation.top
+    - search.suggest
+    - search.highlight
+
+nav:
+  - Home: index.md
+  - Usage: usage.md
+  - Configuration: config.md
+  - Development: development.md
+
+markdown_extensions:
+  - toc:
+      permalink: true
+  - admonition
+  - codehilite
+  - pymdownx.superfences

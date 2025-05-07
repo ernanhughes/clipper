@@ -1,3 +1,17 @@
 [build-system]
 requires = ["setuptools", "wheel"]
 build-backend = "setuptools.build_meta"
+
+[project]
+name = "clipper-ai"
+version = "0.1.0"
+description = "CLI-based AI image generator"
+authors = [{ name = "Ernan Hughes", email = "ernanhughes@gmail.com" }]
+dependencies = []
+
+[project.optional-dependencies]
+dev = [
+    "pytest",
+    "mkdocs",
+    "mkdocs-material"
+]
