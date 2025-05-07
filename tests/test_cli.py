@@ -4,7 +4,14 @@ import os
 import subprocess
 import time
 import json
+import pytest
 
+integration = pytest.mark.skipif(
+    not os.environ.get("CLIPPER_ENABLE_INTEGRATION"),
+    reason="Integration test disabled by default"
+)
+
+@integration
 def test_cli_single_prompt_log_validation():
     prompt = "Test prompt for spaceship city"
     subprocess.run(["python", "-m", "clipper", "--prompt", prompt], check=True)
@@ -26,7 +33,7 @@ def test_cli_single_prompt_log_validation():
         assert os.path.exists(image_path), f"Image file does not exist: {image_path}"
 
 
-
+@integration
 def test_cli_prompt_file_log_validation():
     prompts = ["Test prompt: red dragon", "Test prompt: green mountain"]
     with tempfile.NamedTemporaryFile(mode="w+", delete=False, suffix=".txt") as f:
