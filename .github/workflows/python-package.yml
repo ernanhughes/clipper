@@ -1,9 +1,10 @@
 name: Build, Test, and Deploy Clipper
 
 on:
+  workflow_dispatch:         # ✅ allows manual triggering from GitHub UI
   push:
     tags:
-      - 'v*'         # Only deploy on version tags like v0.1.0
+      - 'v*'                 # 🚀 deploys only when a version tag is pushed (e.g., v0.1.0)
   pull_request:
     branches: [ main ]
 
@@ -31,7 +32,7 @@ jobs:
   deploy:
     needs: build
     runs-on: ubuntu-latest
-    if: startsWith(github.ref, 'refs/tags/v')
+    if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch'
 
     steps:
     - uses: actions/checkout@v3
