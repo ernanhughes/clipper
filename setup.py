@@ -3,17 +3,16 @@ from setuptools import setup, find_packages
 setup(
     name='clipper',
     version='0.1.0',
-    description='Batch image generation for ComfyUI using prompts',
+    description='Batch image generation for webui_forge using prompts',
     author='Ernan Hughes',
     author_email='ernanhughes@gmail.com',
     packages=find_packages(),
-    py_modules=['cli'],
     install_requires=[
         'requests'
     ],
     entry_points={
         'console_scripts': [
-            'clipper=cli:main',
+            'clipper=clipper.cli:main',
         ],
     },
     classifiers=[

@@ -3,9 +3,9 @@
     "output_dir": "generated_images",
     "log_file": "clipper.log",
     "prompt_log": "prompt_log.jsonl",
-    "steps": 30,
-    "width": 512,
-    "height": 512,
-    "cfg_scale": 7,
+    "steps": 40,
+    "width": 768,
+    "height": 768,
+    "cfg_scale": 9,
     "delay": 1
 }

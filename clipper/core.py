@@ -44,7 +44,7 @@ class Clipper:
             level=logging.INFO,
             format="%(asctime)s [%(levelname)s] %(message)s",
             handlers=[
-                logging.FileHandler(self.config.log_file),
+                logging.FileHandler(self.config.log_file, encoding='utf-8'),
                 logging.StreamHandler()
             ]
         )
@@ -77,7 +77,11 @@ class Clipper:
             "steps": self.config.steps,
             "width": self.config.width,
             "height": self.config.height,
-            "cfg_scale": self.config.cfg_scale
+            "cfg_scale": self.config.cfg_scale,
+            # "enable_hr": True,
+            # "hr_scale": 2,
+            # "hr_upscaler": "RealESRGAN_x4plus",
+            # "denoising_strength": 0.4
         }
 
         try:
@@ -107,17 +111,3 @@ class Clipper:
             self.generate_image(prompt)
             time.sleep(self.config.delay)
         logging.info("🎉 Batch complete")
-
-
-# --- Example usage ---
-if __name__ == "__main__":
-    config = ClipperConfig("clipper_config.json")
-    clipper = Clipper(config)
-
-    prompts = [
-        "A majestic lion standing on a cliff at sunrise",
-        "Cyberpunk samurai walking through a neon-lit alley",
-        "Abstract painting of a dreamlike forest in spring"
-    ]
-
-    clipper.run_batch(prompts)
